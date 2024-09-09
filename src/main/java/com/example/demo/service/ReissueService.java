@@ -26,6 +26,13 @@ public class ReissueService {
         //get refresh token
         String refresh = null;
         Cookie[] cookies = request.getCookies();
+
+        //cookie null check;
+        if(cookies == null) {
+            //response status code
+            return new ResponseEntity<>("cookie null", HttpStatus.BAD_REQUEST);
+        }
+
         for(Cookie cookie : cookies) {
             if("refresh".equals(cookie.getName())) {
                 refresh = cookie.getValue();

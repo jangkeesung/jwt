@@ -42,6 +42,14 @@ public class CustomLogoutFilter extends GenericFilterBean {
         //get refresh token
         String refresh = null;
         Cookie[] cookies = request.getCookies();
+
+        //cookie null check;
+        if(cookies == null) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            return;
+        }
+
+        //store refresh token
         for (Cookie cookie : cookies) {
             if("refresh".equals(cookie.getName())) {
                 refresh = cookie.getValue();
