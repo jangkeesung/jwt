@@ -4,6 +4,7 @@ package com.example.demo.jwt;
 import com.example.demo.dto.CustomUserDetails;
 import com.example.demo.entity.UserEntity;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,7 +30,7 @@ public class JWTFilter extends OncePerRequestFilter {
         String accessToken = request.getHeader("access");
 
         //토큰이 없다면 다음 필터로 넘김
-        if(accessToken == null) {
+        if (accessToken == null || "null".equals(accessToken)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -37,11 +38,26 @@ public class JWTFilter extends OncePerRequestFilter {
         //토큰 만료여부 확인, 만료시 다음 필터로 넘기지 않음
         try {
             jwtUtil.isExpired(accessToken);
+            jwtUtil.isBlacked(accessToken);
         } catch (ExpiredJwtException e) {
 
             //response body
             PrintWriter writer = response.getWriter();
             writer.print("access token expired");
+
+            //response status code
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        } catch (MalformedJwtException mje) {
+            PrintWriter writer = response.getWriter();
+            writer.print("malformed token");
+
+            //response status code
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return;
+        } catch (LogoutJwtException lje) {
+            PrintWriter writer = response.getWriter();
+            writer.print("access token blacked");
 
             //response status code
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

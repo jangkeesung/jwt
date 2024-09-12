@@ -1,7 +1,8 @@
 package com.example.demo.jwt;
 
-import com.example.demo.repository.RefreshRepository;
+import com.example.demo.service.RedisService;
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
@@ -13,12 +14,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.filter.GenericFilterBean;
 
 import java.io.IOException;
+import java.util.Date;
 
 @RequiredArgsConstructor
 public class CustomLogoutFilter extends GenericFilterBean {
 
     private final JWTUtil jwtUtil;
-    private final RefreshRepository refreshRepository;
+    private final RedisService redisService;
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
@@ -80,16 +82,32 @@ public class CustomLogoutFilter extends GenericFilterBean {
         }
 
         //DB에 저장되어 있는지 확인
-        Boolean isExist = refreshRepository.existsByRefresh(refresh);
+        boolean isExist = redisService.isExist(refresh);
         if(!isExist) {
             //response status code
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST); // 또는 이미 로그아웃 되었다는 메시지
             return;
         }
 
+        //access 토큰 블랙리스트 저장
+        String access = request.getHeader("access");
+        try {
+            if (access != null && !"null".equals(access) && !jwtUtil.isExpired(access)) {
+                Date now = new Date();
+                long ttl = jwtUtil.getExpiration(access).getTime() - now.getTime();
+                redisService.saveBlackList(access, ttl);
+            }
+        } catch (ExpiredJwtException eje) {
+            eje.printStackTrace();
+        } catch (JwtException je) {
+            je.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         //로그아웃 진행
         //Refresh 토큰 DB에서 제거
-        refreshRepository.deleteByRefresh(refresh);
+        redisService.deleteRefreshToken(refresh);
 
         //Refresh 토큰 Cookie 값 0
         Cookie cookie = new Cookie("refresh", null);
